@@ -246,6 +246,16 @@ class _PlaySettingState extends State<PlaySetting> {
             setKey: SettingBoxKey.enableOnlineTotal,
             defaultVal: false,
           ),
+          SetSwitchItem(
+            title: '自动跳过广告',
+            subTitle: '自动跳过视频中的广告片段',
+            leading: Icon(Icons.skip_next_outlined),
+            setKey: SettingBoxKey.enableAutoSkipAd,
+            defaultVal: false,
+            callFn: (_) {
+              PlPlayerController.updateSettingsIfExist();
+            },
+          ),
           ListTile(
             dense: false,
             title: Text('默认全屏方向', style: titleStyle),

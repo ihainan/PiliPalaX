@@ -159,6 +159,7 @@ class SettingBoxKey {
       enableBackgroundPlay = 'enableBackgroundPlay',
       continuePlayInBackground = 'continuePlayInBackground',
       setSystemBrightness = 'setSystemBrightness',
+      enableAutoSkipAd = 'enableAutoSkipAd',
 
       /// 隐私
       anonymity = 'anonymity',

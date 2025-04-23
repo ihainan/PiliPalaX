@@ -10,6 +10,7 @@ import 'package:PiliPalaX/models/video/skip_segment.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'dart:math';
+import 'package:PiliPalaX/utils/storage.dart';
 
 import '../../../common/widgets/audio_video_progress_bar.dart';
 
@@ -138,6 +139,13 @@ class _BottomControlState extends State<BottomControl> {
   void _onPositionChanged(Duration position) {
     // 如果正在拖动，不执行跳转
     if (isDragging) {
+      lastPosition = position.inSeconds.toDouble();
+      return;
+    }
+
+    // 如果未启用自动跳过广告，不执行跳转
+    if (!GStorage.setting
+        .get(SettingBoxKey.enableAutoSkipAd, defaultValue: false)) {
       lastPosition = position.inSeconds.toDouble();
       return;
     }
@@ -281,7 +289,10 @@ class _BottomControlState extends State<BottomControl> {
                     children: [
                       // 广告段标记
                       Obx(() {
-                        if (skipSegments.isEmpty) {
+                        if (skipSegments.isEmpty ||
+                            !GStorage.setting.get(
+                                SettingBoxKey.enableAutoSkipAd,
+                                defaultValue: false)) {
                           return const SizedBox();
                         }
                         return AdSegmentIndicator(
