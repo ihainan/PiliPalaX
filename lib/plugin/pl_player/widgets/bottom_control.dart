@@ -47,27 +47,12 @@ class AdSegmentIndicator extends StatelessWidget {
                   ? segment.videoDuration
                   : total.inSeconds;
 
-              debugPrint('广告段位置计算（调整后）：');
-              debugPrint('可用宽度：$availableWidth');
-              debugPrint('左边距补偿：$leftPadding');
-              debugPrint('API 返回的视频总时长：${segment.videoDuration} 秒');
-              debugPrint('播放器报告的总时长：${total.inSeconds} 秒');
-              debugPrint('使用的总时长：$totalDuration 秒');
-              debugPrint('广告段起始时间：${segment.segment[0]} 秒');
-              debugPrint('广告段结束时间：${segment.segment[1]} 秒');
-
               final startRatio = segment.segment[0] / totalDuration;
               final endRatio = segment.segment[1] / totalDuration;
-
-              debugPrint('计算的起始比例：$startRatio');
-              debugPrint('计算的结束比例：$endRatio');
 
               // 根据可用宽度计算实际位置
               final left = leftPadding + (availableWidth * startRatio);
               final segmentWidth = availableWidth * (endRatio - startRatio);
-
-              debugPrint('计算的左边距（补偿后）：$left');
-              debugPrint('计算的宽度（调整后）：$segmentWidth');
 
               return Positioned(
                 left: left,
@@ -269,8 +254,6 @@ class _BottomControlState extends State<BottomControl> {
       final int value = _.sliderPositionSeconds.value;
       final int durationSec = _.durationSeconds.value;
       final int buffer = _.bufferedSeconds.value;
-
-      debugPrint('视频总时长：$durationSec 秒');
 
       if (value > durationSec || durationSec <= 0) {
         return nil;
