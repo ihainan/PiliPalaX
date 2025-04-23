@@ -291,6 +291,20 @@ class PlPlayerController {
 
   List<StreamSubscription> subscriptions = [];
 
+  // 添加视频源变化监听器
+  final List<VoidCallback> _videoSourceChangeListeners = [];
+
+  void addVideoSourceChangeListener(VoidCallback listener) {
+    _videoSourceChangeListeners.add(listener);
+  }
+
+  void removeVideoSourceChangeListener(VoidCallback listener) {
+    _videoSourceChangeListeners.remove(listener);
+  }
+
+  // 获取当前视频的 bvid
+  String? get currentBvid => _bvid;
+
   void updateSliderPositionSecond() {
     int newSecond =
         (_sliderPosition.value.inMicroseconds / Duration.microsecondsPerSecond)
