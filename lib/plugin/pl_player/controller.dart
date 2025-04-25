@@ -302,6 +302,69 @@ class PlPlayerController extends GetxController {
   /// 视频区段列表
   final RxList<ProgressBarRegion> regions = <ProgressBarRegion>[].obs;
 
+  /// 检查并跳过广告区段
+  void _checkAndSkipSponsorSegment(Duration position) {
+    if (isSliderMoving.value) return; // 如果用户正在拖动进度条，不要跳过
+
+    // 获取当前所在区段
+    for (final region in regions) {
+      // 如果当前位置刚好在广告区段的开始位置附近（前后 100ms）
+      if (position >= region.start - const Duration(milliseconds: 100) &&
+          position <= region.start + const Duration(milliseconds: 100)) {
+        // 如果是广告区段，则跳转到区段结束位置
+        if (region.type == '赞助' &&
+            region.start != Duration.zero &&
+            region.end != Duration.zero) {
+          print('跳过广告区段：从 ${region.start} 跳转到 ${region.end}');
+          // 计算跳过的时长
+          final skipDuration = region.end.inSeconds - region.start.inSeconds;
+          SmartDialog.showToast(
+            '已跳过 ${skipDuration}秒 广告',
+            displayTime: const Duration(seconds: 2),
+            alignment: Alignment.topCenter,
+            builder: (context) {
+              final padding = MediaQuery.of(context).padding;
+              return Container(
+                margin: EdgeInsets.only(top: padding.top + 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color:
+                          Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.fast_forward,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '已跳过 ${skipDuration}秒 广告',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+          seekTo(region.end, type: 'sponsor_skip');
+        }
+      }
+    }
+  }
+
   /// 处理视频区段 API 响应
   List<ProgressBarRegion> _processVideoSegments(List<dynamic> data) {
     final List<ProgressBarRegion> regions = [];
@@ -905,6 +968,9 @@ class PlPlayerController extends GetxController {
             _sliderPosition.value = event;
             updateSliderPositionSecond();
           }
+
+          // 检查并跳过广告区段
+          _checkAndSkipSponsorSegment(event);
 
           /// 触发回调事件
           for (var element in _positionListeners) {
