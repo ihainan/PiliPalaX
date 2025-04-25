@@ -59,7 +59,7 @@ class BottomControl extends StatelessWidget implements PreferredSizeWidget {
                     progress: Duration(seconds: value),
                     buffered: Duration(seconds: buffer),
                     total: Duration(seconds: durationSec),
-                    progressBarColor: colorTheme,
+                    progressBarColor: colorTheme.withOpacity(0.7),
                     baseBarColor: Colors.white.withOpacity(0.2),
                     bufferedBarColor: colorTheme.withOpacity(0.4),
                     timeLabelLocation: TimeLabelLocation.sides,
@@ -68,12 +68,20 @@ class BottomControl extends StatelessWidget implements PreferredSizeWidget {
                     thumbColor: colorTheme,
                     barHeight: 3.5,
                     thumbRadius: 7,
+                    regions: [
+                      ProgressBarRegion(
+                        start: const Duration(seconds: 30),
+                        end: const Duration(seconds: 140),
+                        color: Colors.red.withOpacity(0.3),
+                      ),
+                    ],
                     onDragStart: (duration) {
                       feedBack();
                       _.onChangedSliderStart();
                     },
                     onDragUpdate: (duration) {
-                      double newProgress = duration.timeStamp.inSeconds / durationSec;
+                      double newProgress =
+                          duration.timeStamp.inSeconds / durationSec;
                       if ((newProgress - lastAnnouncedValue).abs() > 0.02) {
                         accessibilityDebounce?.cancel();
                         accessibilityDebounce =

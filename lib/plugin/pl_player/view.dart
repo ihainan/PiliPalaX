@@ -424,7 +424,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
             late Function changeFucCall;
             if (isPage) {
               final List<Part> pages =
-              videoIntroController!.videoDetail.value.pages!;
+                  videoIntroController!.videoDetail.value.pages!;
               episodes.addAll(pages);
               changeFucCall = videoIntroController!.changeSeasonOrbangu;
             } else if (isSeason) {
@@ -1168,7 +1168,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                     progress: Duration(seconds: value),
                     buffered: Duration(seconds: buffer),
                     total: Duration(seconds: max),
-                    progressBarColor: colorTheme,
+                    progressBarColor: colorTheme.withOpacity(0.7),
                     baseBarColor: Colors.white.withOpacity(0.2),
                     bufferedBarColor:
                         Theme.of(context).colorScheme.primary.withOpacity(0.4),
@@ -1177,6 +1177,13 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                     thumbColor: colorTheme,
                     barHeight: 3.5,
                     thumbRadius: draggingFixedProgressBar.value ? 7 : 2.5,
+                    regions: [
+                      ProgressBarRegion(
+                        start: const Duration(seconds: 30),
+                        end: const Duration(seconds: 140),
+                        color: Colors.red.withOpacity(0.3),
+                      ),
+                    ],
                     // onDragStart: (duration) {
                     //   draggingFixedProgressBar.value = true;
                     //   feedBack();

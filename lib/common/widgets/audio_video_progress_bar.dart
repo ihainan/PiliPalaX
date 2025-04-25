@@ -62,6 +62,24 @@ enum BarCapShape {
   square,
 }
 
+/// 表示进度条上的特殊区域
+class ProgressBarRegion {
+  /// 区域的开始时间
+  final Duration start;
+
+  /// 区域的结束时间
+  final Duration end;
+
+  /// 区域的颜色
+  final Color color;
+
+  const ProgressBarRegion({
+    required this.start,
+    required this.end,
+    required this.color,
+  });
+}
+
 /// A progress bar widget to show or set the location of the currently
 /// playing audio or video content.
 ///
@@ -98,6 +116,7 @@ class ProgressBar extends LeafRenderObjectWidget {
     this.timeLabelType,
     this.timeLabelTextStyle,
     this.timeLabelPadding = 0.0,
+    this.regions,
   });
 
   /// The elapsed playing time of the media.
@@ -254,6 +273,9 @@ class ProgressBar extends LeafRenderObjectWidget {
   /// the progress bar and a negative number will move them closer.
   final double timeLabelPadding;
 
+  /// 进度条上的特殊区域列表
+  final List<ProgressBarRegion>? regions;
+
   @override
   RenderObject createRenderObject(BuildContext context) {
     final theme = Theme.of(context);
@@ -284,6 +306,7 @@ class ProgressBar extends LeafRenderObjectWidget {
       timeLabelTextStyle: textStyle,
       timeLabelPadding: timeLabelPadding,
       textScaleFactor: textScaleFactor,
+      regions: regions,
     );
   }
 
@@ -316,7 +339,8 @@ class ProgressBar extends LeafRenderObjectWidget {
       ..timeLabelType = timeLabelType ?? TimeLabelType.totalTime
       ..timeLabelTextStyle = textStyle
       ..timeLabelPadding = timeLabelPadding
-      ..textScaleFactor = textScaleFactor;
+      ..textScaleFactor = textScaleFactor
+      ..regions = regions;
   }
 
   @override
@@ -432,6 +456,7 @@ class _RenderProgressBar extends RenderBox {
     TextStyle? timeLabelTextStyle,
     double timeLabelPadding = 0.0,
     double textScaleFactor = 1.0,
+    List<ProgressBarRegion>? regions,
   })  : _total = total,
         _buffered = buffered,
         _onSeek = onSeek,
@@ -452,7 +477,8 @@ class _RenderProgressBar extends RenderBox {
         _timeLabelType = timeLabelType,
         _timeLabelTextStyle = timeLabelTextStyle,
         _timeLabelPadding = timeLabelPadding,
-        _textScaleFactor = textScaleFactor {
+        _textScaleFactor = textScaleFactor,
+        _regions = regions {
     _drag = _EagerHorizontalDragGestureRecognizer()
       ..onStart = _onDragStart
       ..onUpdate = _onDragUpdate
@@ -838,6 +864,15 @@ class _RenderProgressBar extends RenderBox {
     markNeedsLayout();
   }
 
+  /// 进度条上的特殊区域列表
+  List<ProgressBarRegion>? get regions => _regions;
+  List<ProgressBarRegion>? _regions;
+  set regions(List<ProgressBarRegion>? value) {
+    if (_regions == value) return;
+    _regions = value;
+    markNeedsLayout();
+  }
+
   // The smallest that this widget would ever want to be.
   static const _minDesiredWidth = 100.0;
 
@@ -1009,10 +1044,41 @@ class _RenderProgressBar extends RenderBox {
     canvas.save();
     canvas.translate(offset.dx, offset.dy);
     _drawBaseBar(canvas, localSize);
+    _drawRegions(canvas, localSize);
     _drawBufferedBar(canvas, localSize);
     _drawCurrentProgressBar(canvas, localSize);
     _drawThumb(canvas, localSize);
     canvas.restore();
+  }
+
+  void _drawRegions(Canvas canvas, Size localSize) {
+    if (_regions == null || _regions!.isEmpty) return;
+
+    final strokeCap = (_barCapShape == BarCapShape.round)
+        ? StrokeCap.round
+        : StrokeCap.square;
+    final capRadius = _barHeight / 2;
+    final adjustedWidth = localSize.width - barHeight;
+
+    for (final region in _regions!) {
+      final startProportion = _proportionOfTotal(region.start);
+      final endProportion = _proportionOfTotal(region.end);
+
+      if (startProportion >= endProportion) continue;
+
+      final paint = Paint()
+        ..color = region.color
+        ..strokeCap = strokeCap
+        ..strokeWidth = _barHeight;
+
+      final startX = startProportion * adjustedWidth + capRadius;
+      final endX = endProportion * adjustedWidth + capRadius;
+
+      final startPoint = Offset(startX, localSize.height / 2);
+      final endPoint = Offset(endX, localSize.height / 2);
+
+      canvas.drawLine(startPoint, endPoint, paint);
+    }
   }
 
   void _drawBaseBar(Canvas canvas, Size localSize) {
