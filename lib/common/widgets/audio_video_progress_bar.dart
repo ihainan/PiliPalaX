@@ -73,10 +73,14 @@ class ProgressBarRegion {
   /// 区域的颜色
   final Color color;
 
+  /// 区域的类型
+  final String type;
+
   const ProgressBarRegion({
     required this.start,
     required this.end,
     required this.color,
+    required this.type,
   });
 }
 

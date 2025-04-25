@@ -908,6 +908,24 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                               style: textStyle,
                             ),
                           ),
+                          Obx(() {
+                            final segmentType =
+                                _.getCurrentSegmentType(_.sliderPosition.value);
+                            if (segmentType != null) {
+                              return Row(
+                                children: [
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '[$segmentType]',
+                                    style: textStyle.copyWith(
+                                      color: Colors.orange,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          }),
                         ],
                       ),
                     ),
@@ -1177,13 +1195,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                     thumbColor: colorTheme,
                     barHeight: 3.5,
                     thumbRadius: draggingFixedProgressBar.value ? 7 : 2.5,
-                    regions: [
-                      ProgressBarRegion(
-                        start: const Duration(seconds: 30),
-                        end: const Duration(seconds: 140),
-                        color: Colors.red.withOpacity(0.3),
-                      ),
-                    ],
+                    regions: _.regions,
                     // onDragStart: (duration) {
                     //   draggingFixedProgressBar.value = true;
                     //   feedBack();

@@ -68,13 +68,7 @@ class BottomControl extends StatelessWidget implements PreferredSizeWidget {
                     thumbColor: colorTheme,
                     barHeight: 3.5,
                     thumbRadius: 7,
-                    regions: [
-                      ProgressBarRegion(
-                        start: const Duration(seconds: 30),
-                        end: const Duration(seconds: 140),
-                        color: Colors.red.withOpacity(0.3),
-                      ),
-                    ],
+                    regions: _.regions,
                     onDragStart: (duration) {
                       feedBack();
                       _.onChangedSliderStart();

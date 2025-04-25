@@ -424,7 +424,6 @@ class VideoDetailController extends GetxController
       //       (e) => e.codecs!.startsWith(currentDecodeFormats.code),
       // ).toList();
 
-
       // videoUrl = enableCDN
       //     ? VideoUtils.getCdnUrl(firstVideo)
       //     : (firstVideo.backupUrl ?? firstVideo.baseUrl!);

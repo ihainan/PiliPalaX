@@ -39,26 +39,34 @@ import '../../pages/video/introduction/bangumi/controller.dart';
 import '../../pages/video/introduction/detail/controller.dart';
 // import '../../pages/video/controller.dart';
 // import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:PiliPalaX/models/video_detail_res.dart';
+import 'package:PiliPalaX/plugin/pl_player/models/data_source.dart';
+import 'package:PiliPalaX/plugin/pl_player/models/duration.dart';
+import 'package:PiliPalaX/plugin/pl_player/models/play_status.dart';
+import 'package:PiliPalaX/plugin/pl_player/models/video_fit.dart';
+import 'package:PiliPalaX/plugin/pl_player/models/video_type.dart';
+import 'package:PiliPalaX/plugin/pl_player/utils.dart';
+import 'package:PiliPalaX/utils/http_client.dart';
+import 'package:PiliPalaX/plugin/pl_player/models/video_segment.dart';
+import '../../../common/widgets/audio_video_progress_bar.dart';
 
 Box videoStorage = GStorage.video;
 Box setting = GStorage.setting;
 Box onlineCache = GStorage.onlineCache;
 
-class PlPlayerController {
-  static Player? _videoPlayerController;
-  VideoController? _videoController;
-
-  // 添加一个私有静态变量来保存实例
-  static PlPlayerController? _instance;
-
-  // 流事件  监听播放状态变化
-  StreamSubscription? _playerEventSubs;
-
+///
+class PlPlayerController extends GetxController {
   /// [playerStatus] has a [status] observable
   final PlPlayerStatus playerStatus = PlPlayerStatus();
 
   ///
   final PlPlayerDataStatus dataStatus = PlPlayerDataStatus();
+
+  // 添加缺失的成员变量
+  static PlPlayerController? _instance;
+  Player? _videoPlayerController;
+  VideoController? _videoController;
+  StreamSubscription<PlayerStatus>? _playerEventSubs;
 
   // bool controlsEnabled = false;
 
@@ -290,6 +298,79 @@ class PlPlayerController {
   PlayRepeat playRepeat = PlayRepeat.pause;
 
   List<StreamSubscription> subscriptions = [];
+
+  /// 视频区段列表
+  final RxList<ProgressBarRegion> regions = <ProgressBarRegion>[].obs;
+
+  /// 处理视频区段 API 响应
+  List<ProgressBarRegion> _processVideoSegments(List<dynamic> data) {
+    final List<ProgressBarRegion> regions = [];
+    for (final item in data) {
+      if (item is! Map<String, dynamic>) continue;
+
+      final category = item['category'] as String?;
+      final segment = item['segment'] as List<dynamic>?;
+
+      if (category == null || segment == null || segment.length != 2) continue;
+
+      // 只处理特定类型的区段
+      if (!['intro', 'selfpromo', 'sponsor', 'outro'].contains(category))
+        continue;
+
+      final start = segment[0] as num?;
+      final end = segment[1] as num?;
+
+      if (start == null || end == null) continue;
+
+      Color color;
+      String type;
+      switch (category) {
+        case 'sponsor':
+          color = Colors.green;
+          type = '赞助';
+          break;
+        case 'selfpromo':
+          color = Colors.blue;
+          type = '自我推广';
+          break;
+        case 'intro':
+          color = Colors.purple;
+          type = '片头';
+          break;
+        case 'outro':
+          color = Colors.orange;
+          type = '片尾';
+          break;
+        default:
+          continue;
+      }
+
+      regions.add(
+        ProgressBarRegion(
+          start: Duration(milliseconds: (start * 1000).round()),
+          end: Duration(milliseconds: (end * 1000).round()),
+          color: color,
+          type: type,
+        ),
+      );
+    }
+    return regions;
+  }
+
+  /// 获取视频区段信息
+  Future<void> fetchVideoSegments(String bvid) async {
+    try {
+      final response = await HttpClient.get(
+          'https://bsbsb.top/api/skipSegments?videoID=$bvid');
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        regions.value = _processVideoSegments(data);
+      }
+    } catch (e) {
+      print('Error fetching video segments: $e');
+      regions.value = [];
+    }
+  }
 
   void updateSliderPositionSecond() {
     int newSecond =
@@ -568,6 +649,8 @@ class PlPlayerController {
         refreshVideoMetaInfo().then((_) {
           chooseSubtitle();
         });
+        // 获取视频区段信息
+        await fetchVideoSegments(bvid);
       }
     } catch (err, stackTrace) {
       dataStatus.status.value = DataStatus.error;
@@ -1823,5 +1906,15 @@ class PlPlayerController {
         );
       },
     );
+  }
+
+  /// 获取当前区段类型
+  String? getCurrentSegmentType(Duration position) {
+    for (final region in regions) {
+      if (position >= region.start && position <= region.end) {
+        return region.type;
+      }
+    }
+    return null;
   }
 }
