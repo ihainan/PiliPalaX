@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -121,6 +122,8 @@ class ProgressBar extends LeafRenderObjectWidget {
     this.timeLabelTextStyle,
     this.timeLabelPadding = 0.0,
     this.regions,
+    this.onSkipRegion,
+    this.showSkipPrompt = false,
   });
 
   /// The elapsed playing time of the media.
@@ -280,6 +283,12 @@ class ProgressBar extends LeafRenderObjectWidget {
   /// 进度条上的特殊区域列表
   final List<ProgressBarRegion>? regions;
 
+  /// 当用户点击跳过按钮时的回调
+  final void Function(ProgressBarRegion region)? onSkipRegion;
+
+  /// 是否显示跳过提示
+  final bool showSkipPrompt;
+
   @override
   RenderObject createRenderObject(BuildContext context) {
     final theme = Theme.of(context);
@@ -311,6 +320,8 @@ class ProgressBar extends LeafRenderObjectWidget {
       timeLabelPadding: timeLabelPadding,
       textScaleFactor: textScaleFactor,
       regions: regions,
+      onSkipRegion: onSkipRegion,
+      showSkipPrompt: showSkipPrompt,
     );
   }
 
@@ -344,7 +355,9 @@ class ProgressBar extends LeafRenderObjectWidget {
       ..timeLabelTextStyle = textStyle
       ..timeLabelPadding = timeLabelPadding
       ..textScaleFactor = textScaleFactor
-      ..regions = regions;
+      ..regions = regions
+      ..onSkipRegion = onSkipRegion
+      ..showSkipPrompt = showSkipPrompt;
   }
 
   @override
@@ -437,6 +450,18 @@ class _EagerHorizontalDragGestureRecognizer
 }
 
 class _RenderProgressBar extends RenderBox {
+  bool _showSkipPrompt;
+  bool get showSkipPrompt => _showSkipPrompt;
+  set showSkipPrompt(bool value) {
+    if (_showSkipPrompt == value) return;
+    _showSkipPrompt = value;
+    if (!value) {
+      _currentRegion = null;
+      _skipPromptTimer?.cancel();
+    }
+    markNeedsPaint();
+  }
+
   _RenderProgressBar({
     required Duration progress,
     required Duration total,
@@ -461,6 +486,8 @@ class _RenderProgressBar extends RenderBox {
     double timeLabelPadding = 0.0,
     double textScaleFactor = 1.0,
     List<ProgressBarRegion>? regions,
+    void Function(ProgressBarRegion region)? onSkipRegion,
+    bool showSkipPrompt = false,
   })  : _total = total,
         _buffered = buffered,
         _onSeek = onSeek,
@@ -482,7 +509,9 @@ class _RenderProgressBar extends RenderBox {
         _timeLabelTextStyle = timeLabelTextStyle,
         _timeLabelPadding = timeLabelPadding,
         _textScaleFactor = textScaleFactor,
-        _regions = regions {
+        _regions = regions,
+        _onSkipRegion = onSkipRegion,
+        _showSkipPrompt = showSkipPrompt {
     _drag = _EagerHorizontalDragGestureRecognizer()
       ..onStart = _onDragStart
       ..onUpdate = _onDragUpdate
@@ -893,7 +922,13 @@ class _RenderProgressBar extends RenderBox {
   double computeMaxIntrinsicHeight(double width) => _calculateDesiredHeight();
 
   @override
-  bool hitTestSelf(Offset position) => true;
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    if (_skipButtonRect != null && _skipButtonRect!.contains(position)) {
+      _handleSkipButtonTap(position);
+      return true;
+    }
+    return super.hitTest(result, position: position);
+  }
 
   @override
   void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
@@ -951,6 +986,11 @@ class _RenderProgressBar extends RenderBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {
+    // 检查是否需要显示跳过提示
+    if (_showSkipPrompt) {
+      _checkAndShowSkipPrompt(_progress);
+    }
+
     final canvas = context.canvas;
     canvas.save();
     canvas.translate(offset.dx, offset.dy);
@@ -965,6 +1005,11 @@ class _RenderProgressBar extends RenderBox {
         break;
       default:
         _drawProgressBarWithoutLabels(canvas);
+    }
+
+    // 只在启用显示提示且有当前区段时绘制提示
+    if (_showSkipPrompt && _currentRegion != null && _skipPromptTimer != null) {
+      _drawSkipPrompt(canvas);
     }
 
     canvas.restore();
@@ -1207,5 +1252,184 @@ class _RenderProgressBar extends RenderBox {
     markNeedsPaint();
     markNeedsSemanticsUpdate();
     onSeek?.call(_currentThumbDuration());
+  }
+
+  void Function(ProgressBarRegion region)? _onSkipRegion;
+  void Function(ProgressBarRegion region)? get onSkipRegion => _onSkipRegion;
+  set onSkipRegion(void Function(ProgressBarRegion region)? value) {
+    if (_onSkipRegion == value) return;
+    _onSkipRegion = value;
+    markNeedsPaint();
+  }
+
+  ProgressBarRegion? _currentRegion;
+  Timer? _skipPromptTimer;
+  int _skipCountdown = 5;
+
+  void _checkAndShowSkipPrompt(Duration position) {
+    if (_regions == null) return;
+
+    // 检查当前位置是否在某个区段的开始位置附近
+    for (final region in _regions!) {
+      if (position >= region.start - const Duration(milliseconds: 100) &&
+          position <= region.start + const Duration(milliseconds: 100)) {
+        if (['片头', '自我推广', '片尾'].contains(region.type)) {
+          // 如果已经在显示提示，不要重复显示
+          if (_currentRegion == region && _showSkipPrompt) return;
+
+          _currentRegion = region;
+          _showSkipPrompt = true;
+          _skipCountdown = 5;
+          _skipPromptTimer?.cancel();
+          _skipPromptTimer =
+              Timer.periodic(const Duration(seconds: 1), (timer) {
+            _skipCountdown--;
+            if (_skipCountdown <= 0) {
+              _showSkipPrompt = false;
+              _currentRegion = null;
+              timer.cancel();
+              markNeedsPaint();
+            } else {
+              markNeedsPaint();
+            }
+          });
+          markNeedsPaint();
+          break;
+        }
+      }
+    }
+  }
+
+  void _drawSkipPrompt(Canvas canvas) {
+    if (_currentRegion == null) return;
+
+    final promptHeight = 32.0;
+    final promptWidth = 140.0;
+    final promptRadius = 4.0;
+
+    // 计算提示框位置 - 在进度条右端上方
+    final promptLeft = size.width - promptWidth - 8;
+    final promptTop = -promptHeight - 8;
+
+    // 绘制背景
+    final bgRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(promptLeft, promptTop, promptWidth, promptHeight),
+      Radius.circular(promptRadius),
+    );
+    final bgPaint = Paint()..color = Colors.black.withOpacity(0.8);
+    canvas.drawRRect(bgRect, bgPaint);
+
+    // 绘制图标和文本
+    final iconPainter = TextPainter(
+      text: TextSpan(
+        text: String.fromCharCode(Icons.fast_forward_rounded.codePoint),
+        style: TextStyle(
+          fontFamily: Icons.fast_forward_rounded.fontFamily,
+          package: Icons.fast_forward_rounded.fontPackage,
+          fontSize: 16,
+          color: Colors.white.withOpacity(0.9),
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    // 绘制文本
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: '跳过${_currentRegion!.type}',
+        style: TextStyle(
+          color: Colors.white.withOpacity(0.9),
+          fontSize: 12,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    // 绘制倒计时
+    final countdownPainter = TextPainter(
+      text: TextSpan(
+        text: '($_skipCountdown)',
+        style: TextStyle(
+          color: Colors.white.withOpacity(0.7),
+          fontSize: 12,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    // 计算图标和文本的位置
+    final iconX = promptLeft + 8;
+    final iconY = promptTop + (promptHeight - iconPainter.height) / 2;
+    final textX = iconX + iconPainter.width + 4;
+    final textY = promptTop + (promptHeight - textPainter.height) / 2;
+    final countdownX = textX + textPainter.width + 2;
+    final countdownY = promptTop + (promptHeight - countdownPainter.height) / 2;
+
+    iconPainter.paint(canvas, Offset(iconX, iconY));
+    textPainter.paint(canvas, Offset(textX, textY));
+    countdownPainter.paint(canvas, Offset(countdownX, countdownY));
+
+    // 绘制跳过按钮
+    final buttonWidth = 36.0;
+    final buttonHeight = 20.0;
+    final buttonLeft = promptWidth - buttonWidth - 6; // 相对于提示框的位置
+    final buttonTop = (promptHeight - buttonHeight) / 2; // 相对于提示框的位置
+
+    final buttonRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(promptLeft + buttonLeft, promptTop + buttonTop, buttonWidth,
+          buttonHeight),
+      Radius.circular(2),
+    );
+    final buttonPaint = Paint()..color = Colors.white.withOpacity(0.15);
+    canvas.drawRRect(buttonRect, buttonPaint);
+
+    // 添加点击检测区域（使用相对于提示框的坐标）
+    _skipButtonRect =
+        Rect.fromLTWH(buttonLeft, buttonTop, buttonWidth, buttonHeight);
+
+    final buttonTextPainter = TextPainter(
+      text: TextSpan(
+        text: '跳过',
+        style: TextStyle(
+          color: Colors.white.withOpacity(0.9),
+          fontSize: 11,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    buttonTextPainter.paint(
+      canvas,
+      Offset(
+        promptLeft + buttonLeft + (buttonWidth - buttonTextPainter.width) / 2,
+        promptTop + buttonTop + (buttonHeight - buttonTextPainter.height) / 2,
+      ),
+    );
+
+    // 绘制按钮边框
+    final buttonBorderPaint = Paint()
+      ..color = Colors.white.withOpacity(0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+    canvas.drawRRect(buttonRect, buttonBorderPaint);
+  }
+
+  Rect? _skipButtonRect;
+
+  void _handleSkipButtonTap(Offset localPosition) {
+    if (_skipButtonRect != null && _skipButtonRect!.contains(localPosition)) {
+      if (_currentRegion != null) {
+        onSkipRegion?.call(_currentRegion!);
+        _showSkipPrompt = false;
+        _currentRegion = null;
+        markNeedsPaint();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _skipPromptTimer?.cancel();
+    super.dispose();
   }
 }

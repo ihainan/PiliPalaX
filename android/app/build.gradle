@@ -28,7 +28,7 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
-def _storeFile = file(System.getenv("KEYSTORE") ?: keystoreProperties["storeFile"] ?: "vvex.jks")
+def _storeFile = file(System.getenv("KEYSTORE") ?: keystoreProperties["storeFile"] ?: "upload-keystore.jks")
 def _storePassword = System.getenv("KEYSTORE_PASSWORD") ?: keystoreProperties["storePassword"]
 def _keyAlias = System.getenv("KEY_ALIAS") ?: keystoreProperties["keyAlias"]
 def _keyPassword = System.getenv("KEY_PASSWORD") ?: keystoreProperties["keyPassword"]

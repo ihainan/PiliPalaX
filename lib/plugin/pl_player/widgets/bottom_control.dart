@@ -97,6 +97,14 @@ class BottomControl extends StatelessWidget implements PreferredSizeWidget {
                           "${(duration.inSeconds / durationSec * 100).round()}%",
                           TextDirection.ltr);
                     },
+                    onSkipRegion: (region) {
+                      if (region.type == '赞助') {
+                        _.seekTo(region.end, type: '${region.type}_skip');
+                      } else {
+                        _.showSkipPrompt(region);
+                      }
+                    },
+                    showSkipPrompt: true,
                   )),
             ),
             Row(

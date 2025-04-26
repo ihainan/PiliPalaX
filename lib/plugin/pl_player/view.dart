@@ -1175,13 +1175,45 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
               return const SizedBox();
             }
             return Positioned(
-                bottom: -1,
-                left: 0,
-                right: 0,
-                child: Semantics(
-                  // label: '${(value / max * 100).round()}%',
-                  value: '${(value / max * 100).round()}%',
-                  // enabled: false,
+              bottom: -1,
+              left: 0,
+              right: 0,
+              child: Semantics(
+                value: '${(value / max * 100).round()}%',
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTapDown: (details) {
+                    // 检查是否点击了提示框区域
+                    final promptHeight = 32.0;
+                    final promptWidth = 140.0;
+                    final promptLeft = context.size!.width - promptWidth - 8;
+                    final promptTop = -promptHeight - 8;
+                    final buttonWidth = 36.0;
+                    final buttonHeight = 20.0;
+                    final buttonLeft = promptWidth - buttonWidth - 6;
+                    final buttonTop = (promptHeight - buttonHeight) / 2;
+
+                    // 检查点击是否在提示框区域内
+                    if (details.localPosition.dx >= promptLeft &&
+                        details.localPosition.dx <= promptLeft + promptWidth &&
+                        details.localPosition.dy >= promptTop &&
+                        details.localPosition.dy <= promptTop + promptHeight) {
+                      // 转换为相对于提示框的坐标
+                      final relativeX = details.localPosition.dx - promptLeft;
+                      final relativeY = details.localPosition.dy - promptTop;
+
+                      // 检查是否点击了按钮
+                      if (relativeX >= buttonLeft &&
+                          relativeX <= buttonLeft + buttonWidth &&
+                          relativeY >= buttonTop &&
+                          relativeY <= buttonTop + buttonHeight) {
+                        // 阻止事件冒泡
+                        return;
+                      }
+                    }
+                    // 如果不是点击提示框区域，显示控制栏
+                    _.controls = true;
+                  },
                   child: ProgressBar(
                     progress: Duration(seconds: value),
                     buffered: Duration(seconds: buffer),
@@ -1191,51 +1223,34 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
                     bufferedBarColor:
                         Theme.of(context).colorScheme.primary.withOpacity(0.4),
                     timeLabelLocation: TimeLabelLocation.none,
-                    // timeLabelLocation: TimeLabelLocation.sides,
                     thumbColor: colorTheme,
                     barHeight: 3.5,
                     thumbRadius: draggingFixedProgressBar.value ? 7 : 2.5,
                     regions: _.regions,
-                    // onDragStart: (duration) {
-                    //   draggingFixedProgressBar.value = true;
-                    //   feedBack();
-                    //   _.onChangedSliderStart();
-                    // },
-                    // onDragUpdate: (duration) {
-                    //   double newProgress = duration.timeStamp.inSeconds / max;
-                    //   if ((newProgress - _lastAnnouncedValue).abs() > 0.02) {
-                    //     _accessibilityDebounce?.cancel();
-                    //     _accessibilityDebounce =
-                    //         Timer(const Duration(milliseconds: 200), () {
-                    //       SemanticsService.announce(
-                    //           "${(newProgress * 100).round()}%",
-                    //           TextDirection.ltr);
-                    //       _lastAnnouncedValue = newProgress;
-                    //     });
-                    //   }
-                    //   _.onUpdatedSliderProgress(duration.timeStamp);
-                    // },
-                    // onSeek: (duration) {
-                    //   draggingFixedProgressBar.value = false;
-                    //   _.onChangedSliderEnd();
-                    //   _.onChangedSlider(duration.inSeconds.toDouble());
-                    //   _.seekTo(Duration(seconds: duration.inSeconds),
-                    //       type: 'slider');
-                    //   SemanticsService.announce(
-                    //       "${(duration.inSeconds / max * 100).round()}%",
-                    //       TextDirection.ltr);
-                    // },
+                    onSeek: (duration) {
+                      _.seekTo(duration, type: 'slider');
+                    },
+                    onDragStart: (details) {
+                      _.onChangedSliderStart();
+                    },
+                    onDragEnd: () {
+                      _.onChangedSliderEnd();
+                    },
+                    onDragUpdate: (details) {
+                      _.onUpdatedSliderProgress(details.timeStamp);
+                    },
+                    onSkipRegion: (region) {
+                      if (region.type == '赞助') {
+                        _.seekTo(region.end, type: '${region.type}_skip');
+                      } else {
+                        _.showSkipPrompt(region);
+                      }
+                    },
+                    showSkipPrompt: !_.showControls.value,
                   ),
-                  // SlideTransition(
-                  //     position: Tween<Offset>(
-                  //       begin: Offset.zero,
-                  //       end: const Offset(0, -1),
-                  //     ).animate(CurvedAnimation(
-                  //       parent: animationController,
-                  //       curve: Curves.easeInOut,
-                  //     )),
-                  //     child: ),
-                ));
+                ),
+              ),
+            );
           },
         ),
 
